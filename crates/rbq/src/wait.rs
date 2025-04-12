@@ -14,7 +14,7 @@ impl<const N: usize> RbQueue<N> {
 
     pub fn wait<'a, F, T>(&'a self, op: F) -> RbQueueFuture<'a, F, N>
     where
-        F: Fn(&RbQueue<N>, CriticalSection) -> Option<T>,
+        F: Fn(&'a RbQueue<N>, CriticalSection) -> Option<T>,
     {
         RbQueueFuture { queue: self, op }
     }
@@ -25,9 +25,9 @@ pub struct RbQueueFuture<'a, F, const N: usize> {
     op: F,
 }
 
-impl<T, F, const N: usize> Future for RbQueueFuture<'_, F, N>
+impl<'a, T, F, const N: usize> Future for RbQueueFuture<'a, F, N>
 where
-    F: Fn(&RbQueue<N>, CriticalSection) -> Option<T>,
+    F: Fn(&'a RbQueue<N>, CriticalSection) -> Option<T>,
 {
     type Output = T;
 

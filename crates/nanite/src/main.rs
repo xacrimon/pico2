@@ -6,7 +6,6 @@
 #![no_main]
 
 use core::cell::RefCell;
-use core::mem;
 
 use critical_section::{CriticalSection, Mutex};
 use defmt::println;
@@ -68,13 +67,7 @@ fn core_panic(_info: &core::panic::PanicInfo) -> ! {
 #[embassy_executor::task]
 async fn send_queue_uart(mut tx: UartTx<'static, UART0, uart::Async>) {
     loop {
-        // TODO: fix the weird lifetimes that should work but don't, transmute saves the day
-        let grant = QUEUE
-            .wait(|q, cs| unsafe {
-                mem::transmute::<_, Option<rbq::GrantRead<1024>>>(q.read(cs).ok())
-            })
-            .await;
-
+        let grant = QUEUE.wait(|q, cs| q.read(cs).ok()).await;
         let size = grant.buf().len();
         tx.write(grant.buf()).await.unwrap();
         critical_section::with(|cs| grant.release(size, cs));
