@@ -251,7 +251,7 @@ impl<const N: usize> GrantWrite<'_, N> {
 
 impl<const N: usize> Drop for GrantWrite<'_, N> {
     fn drop(&mut self) {
-        panic!();
+        critical_section::with(|cs| unsafe { self.commit_inner(0, cs) });
     }
 }
 
@@ -315,7 +315,7 @@ impl<const N: usize> GrantRead<'_, N> {
 
 impl<const N: usize> Drop for GrantRead<'_, N> {
     fn drop(&mut self) {
-        panic!();
+        critical_section::with(|cs: CriticalSection<'_>| unsafe { self.release_inner(0, cs) });
     }
 }
 
@@ -387,6 +387,6 @@ impl<const N: usize> SplitGrantRead<'_, N> {
 
 impl<const N: usize> Drop for SplitGrantRead<'_, N> {
     fn drop(&mut self) {
-        panic!();
+        critical_section::with(|cs: CriticalSection<'_>| unsafe { self.release_inner(0, cs) });
     }
 }

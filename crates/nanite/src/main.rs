@@ -11,10 +11,9 @@ use critical_section::{CriticalSection, Mutex};
 use defmt::println;
 use embassy_executor::Spawner;
 use embassy_rp::peripherals::UART0;
-use embassy_rp::uart::{Blocking, BufferedInterruptHandler};
+use embassy_rp::uart::{BufferedInterruptHandler, UartTx};
 use embassy_rp::{bind_interrupts, uart};
 use embassy_time::Timer;
-use embedded_io_async::Write;
 use rbq::RbQueue;
 
 bind_interrupts!(struct Irqs {
@@ -69,19 +68,16 @@ fn core_panic(_info: &core::panic::PanicInfo) -> ! {
 }
 
 #[embassy_executor::task]
-async fn send_queue_uart(uart: uart::Uart<'static, UART0, Blocking>) {
-    let mut tx_buffer = [0u8; 16];
-    let mut rx_buffer = [0u8; 16];
-    let mut uart = uart.into_buffered(Irqs, &mut tx_buffer, &mut rx_buffer);
-
+async fn send_queue_uart(mut tx: UartTx<'static, UART0, uart::Async>) {
     loop {
         let Ok(grant) = critical_section::with(|cs| QUEUE.read(cs)) else {
             continue;
         };
 
-        let n = uart.write(grant.buf()).await.unwrap();
-        critical_section::with(|cs| grant.release(n, cs));
-        Timer::after_millis(100).await;
+        let size = grant.buf().len();
+        tx.write(grant.buf()).await.unwrap();
+        critical_section::with(|cs| grant.release(size, cs));
+        Timer::after_millis(10).await;
     }
 }
 
@@ -91,9 +87,6 @@ async fn main(spawner: Spawner) {
 
     println!("Hello, world!");
 
-    let config = uart::Config::default();
-    let uart =
-        uart::Uart::new_with_rtscts_blocking(p.UART0, p.PIN_0, p.PIN_1, p.PIN_3, p.PIN_2, config);
-
-    spawner.spawn(send_queue_uart(uart)).unwrap();
+    let uart_tx = UartTx::new(p.UART0, p.PIN_0, p.DMA_CH0, uart::Config::default());
+    spawner.spawn(send_queue_uart(uart_tx)).unwrap();
 }
