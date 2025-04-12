@@ -79,7 +79,15 @@ jobs:
         run: |
           cargo version
           rustup target add thumbv8m.main-none-eabihf
+      - name: Cache tools
+        id: cache-tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/cargo-machete
+          key: tidy-tools-${{ hashFiles('.github/workflows/checks.yml') }}
       - name: Install tools
+        if: ${{ steps.cache-tools.outputs.cache-hit != 'true' }}
         run: |
           cargo install --config .cargo/config.toml --profile ci --locked --version "=0.8.0" cargo-machete
       - name: Run `cargo fmt`
