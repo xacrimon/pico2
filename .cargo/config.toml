@@ -1,13 +1,6 @@
-#
-# Cargo Configuration for the https://github.com/rp-rs/rp-hal.git repository.
-#
-# You might want to make a similar file in your own repository if you are
-# writing programs for Raspberry Silicon microcontrollers.
-#
-
 [build]
 # Set the default target to match the Cortex-M33 in the RP2350
-#target = "thumbv8m.main-none-eabihf"
+target = "thumbv8m.main-none-eabihf"
 
 # This is the hard-float ABI for Arm mode.
 #

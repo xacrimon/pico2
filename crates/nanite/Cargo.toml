@@ -1,10 +1,7 @@
-cargo-features = ["per-package-target"]
-
 [package]
 name = "nanite"
 version = "0.1.0"
 edition = "2024"
-default-target = "thumbv8m.main-none-eabihf"
 
 [dependencies]
 cortex-m = "0.7.7"
