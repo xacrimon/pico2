@@ -14,17 +14,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Cache toolchain
-        id: cache-toolchain
-        uses: actions/cache@v4
-        with:
-          path: /usr/share/rust/.rustup
-          key: toolchain-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Install toolchain
-        if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
-        run: |
-          cargo version
+      - run: |
+          rustup toolchain install nightly-2025-02-14 --profile default
           rustup target add thumbv8m.main-none-eabihf
+      - uses: Swatinem/rust-cache@v2
       - name: Run `cargo check`
         run: cargo check --profile ci --locked --workspace --all-features
 
@@ -32,17 +25,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Cache toolchain
-        id: cache-toolchain
-        uses: actions/cache@v4
-        with:
-          path: /usr/share/rust/.rustup
-          key: toolchain-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Install toolchain
-        if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
-        run: |
-          cargo version
+      - run: |
+          rustup toolchain install nightly-2025-02-14 --profile default
           rustup target add thumbv8m.main-none-eabihf
+      - uses: Swatinem/rust-cache@v2
       - name: Run `cargo clippy`
         run: cargo clippy --profile ci --locked --workspace --all-features -- -D warnings
 
@@ -50,17 +36,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Cache toolchain
-        id: cache-toolchain
-        uses: actions/cache@v4
-        with:
-          path: /usr/share/rust/.rustup
-          key: toolchain-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Install toolchain
-        if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
-        run: |
-          cargo version
+      - run: |
+          rustup toolchain install nightly-2025-02-14 --profile default
           rustup target add thumbv8m.main-none-eabihf
+      - uses: Swatinem/rust-cache@v2
       - name: Run `cargo test`
         run: cargo test --profile ci --locked --workspace --exclude nanite --all-features
 
@@ -68,26 +47,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Cache toolchain
-        id: cache-toolchain
-        uses: actions/cache@v4
-        with:
-          path: /usr/share/rust/.rustup
-          key: toolchain-${{ hashFiles('rust-toolchain.toml') }}
-      - name: Install toolchain
-        if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
-        run: |
-          cargo version
+      - run: |
+          rustup toolchain install nightly-2025-02-14 --profile default
           rustup target add thumbv8m.main-none-eabihf
-      - name: Cache tools
-        id: cache-tools
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/cargo-machete
-          key: tidy-tools-${{ hashFiles('.github/workflows/checks.yml') }}
+      - uses: Swatinem/rust-cache@v2
       - name: Install tools
-        if: ${{ steps.cache-tools.outputs.cache-hit != 'true' }}
         run: |
           cargo install --config .cargo/config.toml --profile ci --locked --version "=0.8.0" cargo-machete
       - name: Run `cargo fmt`
