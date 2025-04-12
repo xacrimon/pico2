@@ -6,6 +6,7 @@ use core::{cmp, slice};
 
 use bitflags::bitflags;
 use critical_section::CriticalSection;
+use embassy_sync::waitqueue::WakerRegistration;
 
 use crate::Error;
 
@@ -19,7 +20,7 @@ bitflags! {
 }
 
 #[derive(Debug)]
-struct RbqBuffer<const N: usize> {
+pub(crate) struct RbqBuffer<const N: usize> {
     buf: MaybeUninit<[u8; N]>,
 
     // where the next byte will be written
@@ -36,6 +37,8 @@ struct RbqBuffer<const N: usize> {
     reserve: usize,
 
     flags: Flags,
+
+    pub(crate) waker: WakerRegistration,
 }
 
 #[derive(Debug)]
@@ -51,7 +54,7 @@ impl<const N: usize> RbQueue<N> {
     }
 
     #[allow(clippy::mut_from_ref)]
-    unsafe fn inner_ref(&self) -> &mut RbqBuffer<N> {
+    pub(crate) unsafe fn inner_ref(&self) -> &mut RbqBuffer<N> {
         unsafe { &mut *self.inner.get() }
     }
 
@@ -64,6 +67,7 @@ impl<const N: usize> RbQueue<N> {
                 read: 0,
                 reserve: 0,
                 flags: Flags::empty(),
+                waker: WakerRegistration::new(),
             }),
         }
     }

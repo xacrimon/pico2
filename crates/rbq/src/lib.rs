@@ -6,6 +6,7 @@
 mod buffer;
 mod framed;
 mod vusize;
+mod wait;
 
 pub use buffer::{GrantRead, GrantWrite, RbQueue, SplitGrantRead};
 pub use framed::{FrameGrantRead, FrameGrantWrite};
