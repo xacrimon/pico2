@@ -43,6 +43,16 @@ rustflags = [
 [alias]
 xtask = "run --package xtask --"
 
+[profile.dev.package.'*']
+opt-level = 1
+
+[profile.release]
+opt-level = "s"
+codegen-units = 1
+
 [profile.ci]
 inherits = "dev"
 incremental = false
+
+[profile.ci.package.'*']
+opt-level = 0
