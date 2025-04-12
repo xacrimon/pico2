@@ -15,11 +15,14 @@ embassy-time = { version = "0.4.0", features = [
 ] }
 embassy-rp = { version = "0.4.0", features = [
     "defmt",
-    "unstable-pac",
     "critical-section-impl",
+    "unstable-pac",
     "time-driver",
     "intrinsics",
     "rom-v2-intrinsics",
+    "run-from-ram",
+    "boot2-ram-memcpy",
+    "imagedef-secure-exe",
     "rp235xa",
     "binary-info",
 ] }
