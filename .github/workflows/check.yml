@@ -11,7 +11,7 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install toolchain
@@ -20,7 +20,7 @@ jobs:
         run: cargo check --locked --workspace --all-features --all-targets
 
   lint:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install toolchain
@@ -29,7 +29,7 @@ jobs:
         run: cargo clippy --locked --workspace --all-features --all-targets -- -D warnings
 
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install toolchain
@@ -38,14 +38,14 @@ jobs:
         run: cargo test --locked --workspace --all-features --all-targets
 
   tidy:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install toolchain
         run: cargo version
       - name: Install tools
         run: |
-          cargo install --locked --version "=0.8.0" cargo-machete
+          cargo install --profile dev --locked --version "=0.8.0" cargo-machete
       - name: Run `cargo fmt`
         run: cargo fmt --all --check
       - name: Run `cargo machete`
