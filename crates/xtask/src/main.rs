@@ -45,6 +45,6 @@ fn main() -> Result<()> {
 
             Ok(())
         }
-        Command::Picoremote(options) => return picoremote::handle(&options),
+        Command::Picoremote(options) => picoremote::handle(&options),
     }
 }
