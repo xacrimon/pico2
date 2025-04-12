@@ -1,5 +1,6 @@
-use std::process::{self, ExitCode};
+use std::process::{self};
 
+use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 
 #[derive(Debug, Args)]
@@ -15,7 +16,7 @@ enum Command {
     Stop,
 }
 
-pub fn handle(options: &Options) -> ExitCode {
+pub fn handle(options: &Options) -> Result<()> {
     match options.command {
         Command::Build => {
             process::Command::new("docker")
@@ -25,6 +26,8 @@ pub fn handle(options: &Options) -> ExitCode {
                 .arg("./picoremote")
                 .status()
                 .expect("docker build failed");
+
+            Ok(())
         }
         Command::Start => {
             let inspect_status = process::Command::new("docker")
@@ -36,11 +39,9 @@ pub fn handle(options: &Options) -> ExitCode {
                 .expect("docker inspect failed");
 
             if inspect_status.success() {
-                println!(
+                bail!(
                     "container with name xtask-picoremote-server already exists. delete it and try again"
-                );
-
-                return ExitCode::FAILURE;
+                )
             }
 
             process::Command::new("docker")
@@ -51,6 +52,8 @@ pub fn handle(options: &Options) -> ExitCode {
                 .arg("picoremote")
                 .status()
                 .expect("docker run failed");
+
+            Ok(())
         }
         Command::Stop => {
             process::Command::new("docker")
@@ -65,8 +68,8 @@ pub fn handle(options: &Options) -> ExitCode {
                 .arg("xtask-picoremote-server")
                 .status()
                 .expect("docker rm failed");
+
+            Ok(())
         }
     }
-
-    ExitCode::SUCCESS
 }

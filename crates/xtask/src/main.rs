@@ -1,8 +1,9 @@
 mod picoremote;
 
 use std::path::PathBuf;
-use std::process::{self, ExitCode};
+use std::process::{self};
 
+use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Debug, Parser)]
@@ -26,7 +27,7 @@ struct CiOptions {
     job: String,
 }
 
-fn main() -> ExitCode {
+fn main() -> Result<()> {
     let app = App::parse();
 
     match app.command {
@@ -41,9 +42,9 @@ fn main() -> ExitCode {
                 .arg(options.job)
                 .status()
                 .expect("act failed");
+
+            Ok(())
         }
         Command::Picoremote(options) => return picoremote::handle(&options),
     }
-
-    ExitCode::SUCCESS
 }
