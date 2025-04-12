@@ -11,14 +11,10 @@ use critical_section::{CriticalSection, Mutex};
 use defmt::println;
 use embassy_executor::Spawner;
 use embassy_rp::peripherals::UART0;
-use embassy_rp::uart::{BufferedInterruptHandler, UartTx};
-use embassy_rp::{bind_interrupts, uart};
+use embassy_rp::uart;
+use embassy_rp::uart::UartTx;
 use embassy_time::Timer;
 use rbq::RbQueue;
-
-bind_interrupts!(struct Irqs {
-    UART0_IRQ => BufferedInterruptHandler<UART0>;
-});
 
 static QUEUE: RbQueue<1024> = RbQueue::new();
 
