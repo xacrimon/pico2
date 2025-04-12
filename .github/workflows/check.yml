@@ -1,0 +1,49 @@
+name: Check
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install toolchain
+        run: cargo version
+      - name: Run `cargo check`
+        run: cargo check --locked --workspace --all-features --all-targets
+
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install toolchain
+        run: cargo version
+      - name: Run `cargo clippy`
+        run: cargo clippy --locked --workspace --all-features --all-targets -- -D warnings
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install toolchain
+        run: cargo version
+      - name: Run `cargo test`
+        run: cargo test --locked --workspace --all-features --all-targets
+
+  tidy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install toolchain
+        run: cargo version
+      - name: Install tools
+        run: |
+          cargo install --locked --version "=0.8.0" cargo-machete
+      - name: Run `cargo fmt`
+        run: cargo fmt --all --check
+      - name: Run `cargo machete`
+        run: cargo machete
