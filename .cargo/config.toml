@@ -1,0 +1,3 @@
+[profile.ci]
+inherits = "dev"
+incremental = false
