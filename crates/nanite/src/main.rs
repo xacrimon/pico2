@@ -21,6 +21,7 @@ static QUEUE: RbQueue<1024> = RbQueue::new();
 fn enqueue_bytes(buf: &[u8], cs: CriticalSection) {
     let mut grant = QUEUE.grant_exact(buf.len(), cs).unwrap();
     grant.buf_mut().copy_from_slice(buf);
+    grant.commit(buf.len(), cs);
 }
 
 static ENCODER: Mutex<RefCell<defmt::Encoder>> = Mutex::new(RefCell::new(defmt::Encoder::new()));
