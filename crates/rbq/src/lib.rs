@@ -10,6 +10,7 @@ mod vusize;
 pub use buffer::{GrantRead, GrantWrite, RbQueue, SplitGrantRead};
 pub use framed::{FrameGrantRead, FrameGrantWrite};
 
+#[derive(Debug)]
 pub enum Error {
     GrantInProgress,
     InsufficientSize,

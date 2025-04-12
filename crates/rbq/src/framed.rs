@@ -1,31 +1,28 @@
 use core::cmp::min;
 
-use rp235x_hal::sio::{Spinlock, SpinlockValid};
+use critical_section::CriticalSection;
 
 use crate::Error;
 use crate::buffer::{GrantRead, GrantWrite, RbQueue};
 use crate::vusize::{decode_usize, decoded_len, encode_usize_to_slice, encoded_len};
 
-impl<const N: usize, const S: usize> RbQueue<N, S>
-where
-    Spinlock<S>: SpinlockValid,
-{
+impl<const N: usize> RbQueue<N> {
     pub fn grant_frame(
         &mut self,
         max_sz: usize,
-        guard: &Spinlock<S>,
-    ) -> Result<FrameGrantWrite<N, S>, Error> {
+        cs: CriticalSection,
+    ) -> Result<FrameGrantWrite<N>, Error> {
         let hdr_len = encoded_len(max_sz);
         Ok(FrameGrantWrite {
-            grant: self.grant_exact(max_sz + hdr_len, guard)?,
+            grant: self.grant_exact(max_sz + hdr_len, cs)?,
             hdr_len: hdr_len as u8,
         })
     }
 
-    pub fn read_frame(&mut self, guard: &Spinlock<S>) -> Option<FrameGrantRead<N, S>> {
+    pub fn read_frame(&mut self, cs: CriticalSection) -> Option<FrameGrantRead<N>> {
         // Get all available bytes. We never wrap a frame around,
         // so if a header is available, the whole frame will be.
-        let mut grant = self.read(guard).ok()?;
+        let mut grant = self.read(cs).ok()?;
 
         // Additionally, we never commit less than a full frame with
         // a header, so if we have ANY data, we'll have a full header
@@ -49,20 +46,17 @@ where
 
 #[must_use]
 #[derive(Debug)]
-pub struct FrameGrantWrite<'a, const N: usize, const S: usize> {
-    grant: GrantWrite<'a, N, S>,
+pub struct FrameGrantWrite<'a, const N: usize> {
+    grant: GrantWrite<'a, N>,
     hdr_len: u8,
 }
 
-impl<const N: usize, const S: usize> FrameGrantWrite<'_, N, S>
-where
-    Spinlock<S>: SpinlockValid,
-{
-    pub fn commit(mut self, used: usize) {
+impl<const N: usize> FrameGrantWrite<'_, N> {
+    pub fn commit(mut self, used: usize, cs: CriticalSection) {
         let total_len = self.set_header(used);
 
         // Commit the header + frame
-        self.grant.commit(total_len);
+        self.grant.commit(total_len, cs);
     }
 
     fn set_header(&mut self, used: usize) -> usize {
@@ -89,21 +83,18 @@ where
 
 #[must_use]
 #[derive(Debug)]
-pub struct FrameGrantRead<'a, const N: usize, const S: usize> {
-    grant: GrantRead<'a, N, S>,
+pub struct FrameGrantRead<'a, const N: usize> {
+    grant: GrantRead<'a, N>,
     hdr_len: u8,
 }
 
-impl<const N: usize, const S: usize> FrameGrantRead<'_, N, S>
-where
-    Spinlock<S>: SpinlockValid,
-{
-    pub fn release(self) {
+impl<const N: usize> FrameGrantRead<'_, N> {
+    pub fn release(self, cs: CriticalSection) {
         // For a read grant, we have already shrunk the grant
         // size down to the correct size
         let len = self.grant.buf().len();
         unsafe {
-            self.grant.release_inner(len);
+            self.grant.release_inner(len, cs);
         }
     }
 

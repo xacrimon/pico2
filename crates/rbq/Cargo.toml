@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 bitflags = "2.9.0"
-rp235x-hal = "0.3.0"
+critical-section = "1.1.0"

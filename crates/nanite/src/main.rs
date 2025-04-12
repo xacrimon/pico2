@@ -1,92 +1,99 @@
-//! # GPIO 'Blinky' Example
+//! This example test the RP Pico on board LED.
 //!
-//! This application demonstrates how to control a GPIO pin on the rp235x.
-//!
-//! It may need to be adapted to your particular board layout and/or pin assignment.
-//!
-//! See the `Cargo.toml` file for Copyright and license details.
+//! It does not work with the RP Pico W board. See wifi_blinky.rs.
 
 #![no_std]
 #![no_main]
 
-mod panic;
+use core::cell::RefCell;
 
-// Ensure we halt the program on panic (if we don't mention this crate it won't
-// be linked)
-// Some things we need
-use embedded_hal::delay::DelayNs;
-use embedded_hal::digital::OutputPin;
-// Alias for our HAL crate
-use rp235x_hal as hal;
+use critical_section::{CriticalSection, Mutex};
+use defmt::println;
+use embassy_executor::Spawner;
+use embassy_rp::peripherals::UART0;
+use embassy_rp::uart::{Blocking, BufferedInterruptHandler};
+use embassy_rp::{bind_interrupts, uart};
+use embassy_time::Timer;
+use embedded_io_async::Write;
+use rbq::RbQueue;
 
-/// Tell the Boot ROM about our application
-#[unsafe(link_section = ".start_block")]
-#[used]
-pub static IMAGE_DEF: hal::block::ImageDef = hal::block::ImageDef::secure_exe();
+bind_interrupts!(struct Irqs {
+    UART0_IRQ => BufferedInterruptHandler<UART0>;
+});
 
-/// External high-speed crystal on the Raspberry Pi Pico 2 board is 12 MHz.
-/// Adjust if your board has a different frequency
-const XTAL_FREQ_HZ: u32 = 12_000_000u32;
+static QUEUE: RbQueue<1024> = RbQueue::new();
 
-/// Entry point to our bare-metal application.
-///
-/// The `#[hal::entry]` macro ensures the Cortex-M start-up code calls this function
-/// as soon as all global variables and the spinlock are initialised.
-///
-/// The function configures the rp235x peripherals, then toggles a GPIO pin in
-/// an infinite loop. If there is an LED connected to that pin, it will blink.
-#[hal::entry]
-fn main() -> ! {
-    // Grab our singleton objects
-    let mut pac = hal::pac::Peripherals::take().unwrap();
+fn enqueue_bytes(buf: &[u8], cs: CriticalSection) {
+    let mut grant = QUEUE.grant_exact(buf.len(), cs).unwrap();
+    grant.buf_mut().copy_from_slice(buf);
+}
 
-    // Set up the watchdog driver - needed by the clock setup code
-    let mut watchdog = hal::Watchdog::new(pac.WATCHDOG);
+static ENCODER: Mutex<RefCell<defmt::Encoder>> = Mutex::new(RefCell::new(defmt::Encoder::new()));
 
-    // Configure the clocks
-    let clocks = hal::clocks::init_clocks_and_plls(
-        XTAL_FREQ_HZ,
-        pac.XOSC,
-        pac.CLOCKS,
-        pac.PLL_SYS,
-        pac.PLL_USB,
-        &mut pac.RESETS,
-        &mut watchdog,
-    )
-    .unwrap();
+#[defmt::global_logger]
+struct Logger;
 
-    let mut timer = hal::Timer::new_timer0(pac.TIMER0, &mut pac.RESETS, &clocks);
+unsafe impl defmt::Logger for Logger {
+    fn acquire() {
+        critical_section::with(|cs| {
+            let mut encoder = ENCODER.borrow_ref_mut(cs);
+            encoder.start_frame(|buf| enqueue_bytes(buf, cs));
+        });
+    }
 
-    // The single-cycle I/O block controls our GPIO pins
-    let sio = hal::Sio::new(pac.SIO);
+    unsafe fn flush() {}
 
-    // Set the pins to their default state
-    let pins = hal::gpio::Pins::new(
-        pac.IO_BANK0,
-        pac.PADS_BANK0,
-        sio.gpio_bank0,
-        &mut pac.RESETS,
-    );
+    unsafe fn release() {
+        critical_section::with(|cs| {
+            let mut encoder = ENCODER.borrow_ref_mut(cs);
+            encoder.end_frame(|buf| enqueue_bytes(buf, cs));
+        });
+    }
 
-    // Configure GPIO25 as an output
-    let mut led_pin = pins.gpio25.into_push_pull_output();
-    loop {
-        led_pin.set_high().unwrap();
-        timer.delay_ms(500);
-        led_pin.set_low().unwrap();
-        timer.delay_ms(500);
+    unsafe fn write(bytes: &[u8]) {
+        critical_section::with(|cs| {
+            let mut encoder = ENCODER.borrow_ref_mut(cs);
+            encoder.write(bytes, |buf| enqueue_bytes(buf, cs));
+        });
     }
 }
 
-/// Program metadata for `picotool info`
-#[unsafe(link_section = ".bi_entries")]
-#[used]
-pub static PICOTOOL_ENTRIES: [hal::binary_info::EntryAddr; 5] = [
-    hal::binary_info::rp_cargo_bin_name!(),
-    hal::binary_info::rp_cargo_version!(),
-    hal::binary_info::rp_program_description!(c"Blinky Example"),
-    hal::binary_info::rp_cargo_homepage_url!(),
-    hal::binary_info::rp_program_build_attribute!(),
-];
+#[defmt::panic_handler]
+fn defmt_panic() -> ! {
+    loop {}
+}
 
-// End of file
+#[panic_handler]
+fn core_panic(_info: &core::panic::PanicInfo) -> ! {
+    loop {}
+}
+
+#[embassy_executor::task]
+async fn send_queue_uart(uart: uart::Uart<'static, UART0, Blocking>) {
+    let mut tx_buffer = [0u8; 16];
+    let mut rx_buffer = [0u8; 16];
+    let mut uart = uart.into_buffered(Irqs, &mut tx_buffer, &mut rx_buffer);
+
+    loop {
+        let Ok(grant) = critical_section::with(|cs| QUEUE.read(cs)) else {
+            continue;
+        };
+
+        let n = uart.write(grant.buf()).await.unwrap();
+        critical_section::with(|cs| grant.release(n, cs));
+        Timer::after_millis(100).await;
+    }
+}
+
+#[embassy_executor::main]
+async fn main(spawner: Spawner) {
+    let p = embassy_rp::init(Default::default());
+
+    println!("Hello, world!");
+
+    let config = uart::Config::default();
+    let uart =
+        uart::Uart::new_with_rtscts_blocking(p.UART0, p.PIN_0, p.PIN_1, p.PIN_3, p.PIN_2, config);
+
+    spawner.spawn(send_queue_uart(uart)).unwrap();
+}

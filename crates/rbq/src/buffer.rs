@@ -5,7 +5,7 @@ use core::ptr::NonNull;
 use core::{cmp, slice};
 
 use bitflags::bitflags;
-use rp235x_hal::sio::{Spinlock, SpinlockValid};
+use critical_section::CriticalSection;
 
 use crate::Error;
 
@@ -39,16 +39,13 @@ struct RbqBuffer<const N: usize> {
 }
 
 #[derive(Debug)]
-pub struct RbQueue<const N: usize, const S: usize> {
+pub struct RbQueue<const N: usize> {
     inner: UnsafeCell<RbqBuffer<N>>,
 }
 
-unsafe impl<const N: usize, const S: usize> Sync for RbQueue<N, S> {}
+unsafe impl<const N: usize> Sync for RbQueue<N> {}
 
-impl<const N: usize, const S: usize> RbQueue<N, S>
-where
-    Spinlock<S>: SpinlockValid,
-{
+impl<const N: usize> RbQueue<N> {
     unsafe fn inner_ptr(&self) -> NonNull<RbqBuffer<N>> {
         unsafe { NonNull::new_unchecked(self.inner.get()) }
     }
@@ -71,7 +68,7 @@ where
         }
     }
 
-    pub fn grant_exact(&self, sz: usize, _guard: &Spinlock<S>) -> Result<GrantWrite<N, S>, Error> {
+    pub fn grant_exact(&self, sz: usize, _cs: CriticalSection) -> Result<GrantWrite<N>, Error> {
         let inner = unsafe { self.inner_ref() };
 
         if inner.flags.contains(Flags::WRITE_IN_PROGRESS) {
@@ -123,11 +120,11 @@ where
         })
     }
 
-    pub fn grant_max_remaining(&self, _guard: &Spinlock<S>) -> Result<(), Error> {
+    pub fn grant_max_remaining(&self, _cs: CriticalSection) -> Result<(), Error> {
         todo!()
     }
 
-    pub fn read(&self, _guard: &Spinlock<S>) -> Result<GrantRead<N, S>, Error> {
+    pub fn read(&self, _cs: CriticalSection) -> Result<GrantRead<N>, Error> {
         let inner = unsafe { self.inner_ref() };
 
         if inner.flags.contains(Flags::READ_IN_PROGRESS) {
@@ -161,15 +158,12 @@ where
         })
     }
 
-    pub fn split_read(&self, _guard: &Spinlock<S>) -> Result<SplitGrantRead<N, S>, Error> {
+    pub fn split_read(&self, _cs: CriticalSection) -> Result<SplitGrantRead<N>, Error> {
         todo!()
     }
 }
 
-impl<const N: usize, const S: usize> Default for RbQueue<N, S>
-where
-    Spinlock<S>: SpinlockValid,
-{
+impl<const N: usize> Default for RbQueue<N> {
     fn default() -> Self {
         Self::new()
     }
@@ -177,21 +171,18 @@ where
 
 #[must_use]
 #[derive(Debug)]
-pub struct GrantWrite<'a, const N: usize, const S: usize> {
+pub struct GrantWrite<'a, const N: usize> {
     rbq: NonNull<RbqBuffer<N>>,
     buf: NonNull<[u8]>,
     pd: PhantomData<&'a mut [u8]>,
 }
 
-unsafe impl<const N: usize, const S: usize> Send for GrantWrite<'_, N, S> {}
+unsafe impl<const N: usize> Send for GrantWrite<'_, N> {}
 
-impl<const N: usize, const S: usize> GrantWrite<'_, N, S>
-where
-    Spinlock<S>: SpinlockValid,
-{
-    pub fn commit(mut self, used: usize) {
+impl<const N: usize> GrantWrite<'_, N> {
+    pub fn commit(mut self, used: usize, cs: CriticalSection) {
         unsafe {
-            self.commit_inner(used);
+            self.commit_inner(used, cs);
         }
 
         mem::forget(self);
@@ -210,7 +201,7 @@ where
         unsafe { mem::transmute::<&mut [u8], &'static mut [u8]>(self.buf_mut()) }
     }
 
-    pub(crate) unsafe fn commit_inner(&mut self, used: usize) {
+    pub(crate) unsafe fn commit_inner(&mut self, used: usize, _cs: CriticalSection) {
         let inner = unsafe { &mut *self.rbq.as_ptr() };
 
         // if there is no grant in progress, return early. This
@@ -258,7 +249,7 @@ where
     }
 }
 
-impl<const N: usize, const S: usize> Drop for GrantWrite<'_, N, S> {
+impl<const N: usize> Drop for GrantWrite<'_, N> {
     fn drop(&mut self) {
         panic!();
     }
@@ -266,22 +257,19 @@ impl<const N: usize, const S: usize> Drop for GrantWrite<'_, N, S> {
 
 #[must_use]
 #[derive(Debug)]
-pub struct GrantRead<'a, const N: usize, const S: usize> {
+pub struct GrantRead<'a, const N: usize> {
     rbq: NonNull<RbqBuffer<N>>,
     buf: NonNull<[u8]>,
     pd: PhantomData<&'a mut [u8]>,
 }
 
-unsafe impl<const N: usize, const S: usize> Send for GrantRead<'_, N, S> {}
+unsafe impl<const N: usize> Send for GrantRead<'_, N> {}
 
-impl<const N: usize, const S: usize> GrantRead<'_, N, S>
-where
-    Spinlock<S>: SpinlockValid,
-{
-    pub fn release(self, used: usize, _guard: &Spinlock<S>) {
+impl<const N: usize> GrantRead<'_, N> {
+    pub fn release(self, used: usize, cs: CriticalSection) {
         let used = cmp::min(self.buf.len(), used);
         unsafe {
-            self.release_inner(used);
+            self.release_inner(used, cs);
         }
 
         mem::forget(self);
@@ -307,7 +295,7 @@ where
         unsafe { mem::transmute::<&[u8], &'static [u8]>(self.buf()) }
     }
 
-    pub(crate) unsafe fn release_inner(&self, used: usize) {
+    pub(crate) unsafe fn release_inner(&self, used: usize, _cs: CriticalSection) {
         let inner = unsafe { &mut *self.rbq.as_ptr() };
 
         // if there is no grant in progress, return early. This
@@ -325,7 +313,7 @@ where
     }
 }
 
-impl<const N: usize, const S: usize> Drop for GrantRead<'_, N, S> {
+impl<const N: usize> Drop for GrantRead<'_, N> {
     fn drop(&mut self) {
         panic!();
     }
@@ -333,23 +321,20 @@ impl<const N: usize, const S: usize> Drop for GrantRead<'_, N, S> {
 
 #[must_use]
 #[derive(Debug)]
-pub struct SplitGrantRead<'a, const N: usize, const S: usize> {
+pub struct SplitGrantRead<'a, const N: usize> {
     rbq: NonNull<RbqBuffer<N>>,
     buf1: NonNull<[u8]>,
     buf2: NonNull<[u8]>,
     pd: PhantomData<&'a mut [u8]>,
 }
 
-unsafe impl<const N: usize, const S: usize> Send for SplitGrantRead<'_, N, S> {}
+unsafe impl<const N: usize> Send for SplitGrantRead<'_, N> {}
 
-impl<const N: usize, const S: usize> SplitGrantRead<'_, N, S>
-where
-    Spinlock<S>: SpinlockValid,
-{
-    pub fn release(self, used: usize, _guard: &Spinlock<S>) {
+impl<const N: usize> SplitGrantRead<'_, N> {
+    pub fn release(self, used: usize, cs: CriticalSection) {
         let used = cmp::min(self.combined_len(), used);
         unsafe {
-            self.release_inner(used);
+            self.release_inner(used, cs);
         }
 
         mem::forget(self);
@@ -373,7 +358,7 @@ where
         (buf1, buf2)
     }
 
-    pub(crate) unsafe fn release_inner(&self, used: usize) {
+    pub(crate) unsafe fn release_inner(&self, used: usize, _cs: CriticalSection) {
         let inner = unsafe { &mut *self.rbq.as_ptr() };
 
         // if there is no grant in progress, return early. This
@@ -400,7 +385,7 @@ where
     }
 }
 
-impl<const N: usize, const S: usize> Drop for SplitGrantRead<'_, N, S> {
+impl<const N: usize> Drop for SplitGrantRead<'_, N> {
     fn drop(&mut self) {
         panic!();
     }
