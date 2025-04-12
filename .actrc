@@ -1,2 +1,1 @@
---container-architecture=linux/amd64
 --platform ubuntu-22.04=ghcr.io/catthehacker/ubuntu:rust-22.04

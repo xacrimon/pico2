@@ -9,12 +9,13 @@
 #![no_std]
 #![no_main]
 
+mod panic;
+
 // Ensure we halt the program on panic (if we don't mention this crate it won't
 // be linked)
 // Some things we need
 use embedded_hal::delay::DelayNs;
 use embedded_hal::digital::OutputPin;
-use panic_halt as _;
 // Alias for our HAL crate
 use rp235x_hal as hal;
 

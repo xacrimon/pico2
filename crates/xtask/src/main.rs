@@ -1,6 +1,9 @@
-use std::path::PathBuf;
-use std::process;
+mod picoremote;
 
+use std::path::PathBuf;
+use std::process::{self};
+
+use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Debug, Parser)]
@@ -12,6 +15,7 @@ struct App {
 #[derive(Debug, Subcommand)]
 enum Command {
     Ci(CiOptions),
+    Picoremote(picoremote::Options),
 }
 
 #[derive(Debug, Args)]
@@ -23,7 +27,7 @@ struct CiOptions {
     job: String,
 }
 
-fn main() {
+fn main() -> Result<()> {
     let app = App::parse();
 
     match app.command {
@@ -38,6 +42,9 @@ fn main() {
                 .arg(options.job)
                 .status()
                 .expect("act failed");
+
+            Ok(())
         }
+        Command::Picoremote(options) => picoremote::handle(&options),
     }
 }

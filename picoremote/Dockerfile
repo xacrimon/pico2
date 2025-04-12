@@ -5,7 +5,8 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libusb-1.0-0-dev \
     cmake \
-    git
+    git \
+    openssh-server
 
 WORKDIR /embedded
 
@@ -16,3 +17,11 @@ ENV PICO_SDK_PATH=/embedded/pico-sdk
 
 RUN git clone --depth=1 https://github.com/raspberrypi/picotool
 RUN cd picotool && mkdir build && cd build && cmake -DPICO_SDK_PATH=/embedded/pico-sdk/ ../ && make install
+
+WORKDIR /embedded/picoremote
+
+RUN mkdir /var/run/sshd
+RUN echo "root:password" | chpasswd
+RUN echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config
+
+CMD ["/usr/sbin/sshd", "-D"]

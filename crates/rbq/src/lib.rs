@@ -1,14 +1,16 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+#![no_std]
+#![feature(non_null_from_ref)]
+//#![deny(missing_docs)]
+//#![deny(warnings)]
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+mod buffer;
+mod framed;
+mod vusize;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+pub use buffer::{GrantRead, GrantWrite, RbQueue, SplitGrantRead};
+pub use framed::{FrameGrantRead, FrameGrantWrite};
+
+pub enum Error {
+    GrantInProgress,
+    InsufficientSize,
 }
