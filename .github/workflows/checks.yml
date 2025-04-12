@@ -32,6 +32,17 @@ jobs:
       - name: Run `cargo clippy`
         run: cargo clippy --profile ci --locked --workspace --all-features -- -D warnings
 
+  style:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          rustup toolchain install nightly-2025-02-14 --profile default
+          rustup target add thumbv8m.main-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+      - name: Run `cargo fmt`
+        run: cargo fmt --all --check
+
   test-portable:
     runs-on: ubuntu-22.04
     steps:
@@ -54,7 +65,5 @@ jobs:
       - name: Install tools
         run: |
           cargo install --config .cargo/config.toml --profile ci --locked --version "=0.8.0" cargo-machete
-      - name: Run `cargo fmt`
-        run: cargo fmt --all --check
       - name: Run `cargo machete`
         run: cargo machete
