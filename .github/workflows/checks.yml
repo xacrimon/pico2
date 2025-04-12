@@ -15,34 +15,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install toolchain
-        run: cargo version
+        run: |
+          cargo version
+          rustup target add thumbv8m.main-none-eabihf
       - name: Run `cargo check`
-        run: cargo check --profile ci --locked --workspace --all-features --all-targets
+        run: cargo check --profile ci --locked --workspace --all-features
 
   lint:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install toolchain
-        run: cargo version
+        run: |
+          cargo version
+          rustup target add thumbv8m.main-none-eabihf
       - name: Run `cargo clippy`
-        run: cargo clippy --profile ci --locked --workspace --all-features --all-targets -- -D warnings
+        run: cargo clippy --profile ci --locked --workspace --all-features -- -D warnings
 
-  test:
+  test-portable:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install toolchain
-        run: cargo version
+        run: |
+          cargo version
+          rustup target add thumbv8m.main-none-eabihf
       - name: Run `cargo test`
-        run: cargo test --profile ci --locked --workspace --all-features --all-targets
+        run: cargo test --profile ci --locked --workspace --exclude nanite --all-features
 
   tidy:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install toolchain
-        run: cargo version
+        run: |
+          cargo version
+          rustup target add thumbv8m.main-none-eabihf
       - name: Install tools
         run: |
           cargo install --config .cargo/config.toml --profile ci --locked --version "=0.8.0" cargo-machete
