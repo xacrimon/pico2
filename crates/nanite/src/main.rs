@@ -5,9 +5,6 @@
 #![no_std]
 #![no_main]
 
-use core::cell::RefCell;
-
-use critical_section::{CriticalSection, Mutex};
 use defmt::println;
 use embassy_executor::Spawner;
 use embassy_rp::peripherals::UART0;
@@ -17,39 +14,20 @@ use rbq::RbQueue;
 
 static QUEUE: RbQueue<1024> = RbQueue::new();
 
-fn enqueue_bytes(buf: &[u8], cs: CriticalSection) {
-    let mut grant = QUEUE.grant_exact(buf.len(), cs).unwrap();
-    grant.buf_mut().copy_from_slice(buf);
-    grant.commit(buf.len(), cs);
-    QUEUE.wake(cs);
-}
-
-static ENCODER: Mutex<RefCell<defmt::Encoder>> = Mutex::new(RefCell::new(defmt::Encoder::new()));
-
 #[defmt::global_logger]
 struct Logger;
 
 unsafe impl defmt::Logger for Logger {
-    fn acquire() {
-        critical_section::with(|cs| {
-            let mut encoder = ENCODER.borrow_ref_mut(cs);
-            encoder.start_frame(|buf| enqueue_bytes(buf, cs));
-        });
-    }
-
+    fn acquire() {}
     unsafe fn flush() {}
+    unsafe fn release() {}
 
-    unsafe fn release() {
+    unsafe fn write(buf: &[u8]) {
         critical_section::with(|cs| {
-            let mut encoder = ENCODER.borrow_ref_mut(cs);
-            encoder.end_frame(|buf| enqueue_bytes(buf, cs));
-        });
-    }
-
-    unsafe fn write(bytes: &[u8]) {
-        critical_section::with(|cs| {
-            let mut encoder = ENCODER.borrow_ref_mut(cs);
-            encoder.write(bytes, |buf| enqueue_bytes(buf, cs));
+            let mut grant = QUEUE.grant_exact(buf.len(), cs).unwrap();
+            grant.buf_mut().copy_from_slice(buf);
+            grant.commit(buf.len(), cs);
+            QUEUE.wake(cs);
         });
     }
 }
