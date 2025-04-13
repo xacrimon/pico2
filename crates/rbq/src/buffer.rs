@@ -4,20 +4,10 @@ use core::mem::{self, MaybeUninit};
 use core::ptr::NonNull;
 use core::{cmp, slice};
 
-use bitflags::bitflags;
 use critical_section::CriticalSection;
 use embassy_sync::waitqueue::WakerRegistration;
 
 use crate::Error;
-
-bitflags! {
-    #[derive(Debug, Clone, Copy)]
-    struct Flags: u8 {
-        const READ_IN_PROGRESS = 1 << 0;
-        const WRITE_IN_PROGRESS = 1 << 1;
-        const ALREADY_SPLIT = 1 << 2;
-    }
-}
 
 #[derive(Debug)]
 pub(crate) struct RbqBuffer<const N: usize> {
@@ -36,7 +26,8 @@ pub(crate) struct RbqBuffer<const N: usize> {
     // used by the writer to remember what bytes are allowed to be written to, but are not yet ready to be read from
     reserve: usize,
 
-    flags: Flags,
+    read_in_progress: bool,
+    write_in_progress: bool,
 
     pub(crate) waker: WakerRegistration,
 }
@@ -66,7 +57,8 @@ impl<const N: usize> RbQueue<N> {
                 last: 0,
                 read: 0,
                 reserve: 0,
-                flags: Flags::empty(),
+                read_in_progress: false,
+                write_in_progress: false,
                 waker: WakerRegistration::new(),
             }),
         }
@@ -75,10 +67,10 @@ impl<const N: usize> RbQueue<N> {
     pub fn grant_exact(&self, sz: usize, _cs: CriticalSection) -> Result<GrantWrite<N>, Error> {
         let inner = unsafe { self.inner_ref() };
 
-        if inner.flags.contains(Flags::WRITE_IN_PROGRESS) {
+        if inner.write_in_progress {
             return Err(Error::GrantInProgress);
         } else {
-            inner.flags.insert(Flags::WRITE_IN_PROGRESS);
+            inner.write_in_progress = true;
         }
 
         let max = N;
@@ -89,7 +81,7 @@ impl<const N: usize> RbQueue<N> {
             _ if inverted && (inner.write + sz) < inner.read => inner.write,
             // inverted, no room is available
             _ if inverted && (inner.write + sz) >= inner.read => {
-                inner.flags.remove(Flags::WRITE_IN_PROGRESS);
+                inner.write_in_progress = false;
                 return Err(Error::InsufficientSize);
             }
             // non inverted condition
@@ -104,7 +96,7 @@ impl<const N: usize> RbQueue<N> {
                     0
                 } else {
                     // not invertible, no space
-                    inner.flags.remove(Flags::WRITE_IN_PROGRESS);
+                    inner.write_in_progress = false;
                     return Err(Error::InsufficientSize);
                 }
             }
@@ -131,10 +123,10 @@ impl<const N: usize> RbQueue<N> {
     pub fn read(&self, _cs: CriticalSection) -> Result<GrantRead<N>, Error> {
         let inner = unsafe { self.inner_ref() };
 
-        if inner.flags.contains(Flags::READ_IN_PROGRESS) {
+        if inner.read_in_progress {
             return Err(Error::GrantInProgress);
         } else {
-            inner.flags.insert(Flags::READ_IN_PROGRESS);
+            inner.read_in_progress = true;
         }
 
         // untangle the inversion by moving back read
@@ -211,7 +203,7 @@ impl<const N: usize> GrantWrite<'_, N> {
         // if there is no grant in progress, return early. This
         // generally means we are dropping the grant within a
         // wrapper structure
-        if !inner.flags.contains(Flags::WRITE_IN_PROGRESS) {
+        if !inner.write_in_progress {
             return;
         }
 
@@ -249,7 +241,7 @@ impl<const N: usize> GrantWrite<'_, N> {
         }
 
         inner.write = new_write;
-        inner.flags.remove(Flags::WRITE_IN_PROGRESS);
+        inner.write_in_progress = false;
     }
 }
 
@@ -305,7 +297,7 @@ impl<const N: usize> GrantRead<'_, N> {
         // if there is no grant in progress, return early. This
         // generally means we are dropping the grant within a
         // wrapper structure
-        if !inner.flags.contains(Flags::READ_IN_PROGRESS) {
+        if !inner.read_in_progress {
             return;
         }
 
@@ -313,7 +305,7 @@ impl<const N: usize> GrantRead<'_, N> {
         debug_assert!(used <= self.buf.len());
 
         inner.read += used;
-        inner.flags.remove(Flags::READ_IN_PROGRESS);
+        inner.read_in_progress = false;
     }
 }
 
@@ -368,7 +360,7 @@ impl<const N: usize> SplitGrantRead<'_, N> {
         // if there is no grant in progress, return early. This
         // generally means we are dropping the grant within a
         // wrapper structure
-        if !inner.flags.contains(Flags::READ_IN_PROGRESS) {
+        if !inner.read_in_progress {
             return;
         }
 
@@ -381,7 +373,7 @@ impl<const N: usize> SplitGrantRead<'_, N> {
             inner.read = used - self.buf1.len();
         }
 
-        inner.flags.remove(Flags::READ_IN_PROGRESS);
+        inner.read_in_progress = false;
     }
 
     pub fn combined_len(&self) -> usize {
