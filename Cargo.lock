@@ -344,7 +344,8 @@ checksum = "f578e8e2c440e7297e008bb5486a3a8a194775224bbc23729b0dbdfaeebf162e"
 [[package]]
 name = "defmt"
 version = "0.3.100"
-source = "git+https://github.com/xacrimon/defmt.git?rev=2c35688#2c356885ee3b311c3dacff7fb57c01026725b0a3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0963443817029b2024136fc4dd07a5107eb8f977eaf18fcd1fdeb11306b64ad"
 dependencies = [
  "defmt 1.0.1",
 ]
@@ -863,7 +864,7 @@ dependencies = [
  "cortex-m",
  "cortex-m-rt",
  "critical-section",
- "defmt 0.3.100",
+ "defmt 1.0.1",
  "embassy-executor",
  "embassy-futures",
  "embassy-rp",
