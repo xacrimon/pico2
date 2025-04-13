@@ -4,9 +4,7 @@ use embassy_rp::uart;
 use embassy_rp::uart::UartTx;
 use rbq::RbQueue;
 
-const BUF_SZ: usize = 1024;
-
-static TX_QUEUE: RbQueue<BUF_SZ> = RbQueue::new();
+static TX_QUEUE: RbQueue<1024> = RbQueue::new();
 
 #[defmt::global_logger]
 struct Logger;

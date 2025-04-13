@@ -117,8 +117,56 @@ impl<const N: usize> RbQueue<N> {
         })
     }
 
-    pub fn grant_max_remaining(&self, _cs: CriticalSection) -> Result<(), Error> {
-        todo!()
+    pub fn grant_max_remaining(&self, _cs: CriticalSection) -> Result<GrantWrite<N>, Error> {
+        let inner = unsafe { self.inner_ref() };
+
+        if inner.write_in_progress {
+            return Err(Error::GrantInProgress);
+        } else {
+            inner.write_in_progress = true;
+        }
+
+        let max = N;
+        let inverted = inner.write < inner.read;
+
+        let (start, sz) = match () {
+            // inverted, room is still available
+            _ if inverted && inner.write < inner.read => (inner.write, inner.read - inner.write),
+            // inverted, no room is available
+            _ if inverted && inner.write >= inner.read => {
+                inner.write_in_progress = false;
+                return Err(Error::InsufficientSize);
+            }
+            // non inverted condition
+            _ if !inverted && inner.write < max => (inner.write, max - inner.write),
+            // not inverted, but need to invert
+            _ if !inverted && inner.write >= max => {
+                // note: we check sz < read, not <=, because
+                // write must never == read in an inverted condition, since
+                // we will then not be able to tell if we are inverted or not
+                if 0 < inner.read {
+                    // invertible situation
+                    (0, inner.read)
+                } else {
+                    // not invertible, no space
+                    inner.write_in_progress = false;
+                    return Err(Error::InsufficientSize);
+                }
+            }
+            _ => unreachable!(),
+        };
+
+        inner.reserve = start + sz;
+
+        let start_of_buf_ptr = inner.buf.as_mut_ptr().cast::<u8>();
+        let grant_slice = unsafe { slice::from_raw_parts_mut(start_of_buf_ptr.add(start), sz) };
+
+        let ptr = unsafe { self.inner_ptr() };
+        Ok(GrantWrite {
+            rbq: ptr,
+            buf: grant_slice.into(),
+            pd: PhantomData,
+        })
     }
 
     pub fn read(&self, _cs: CriticalSection) -> Result<GrantRead<N>, Error> {
