@@ -353,7 +353,7 @@ dependencies = [
 [[package]]
 name = "defmt"
 version = "1.0.1"
-source = "git+https://github.com/xacrimon/defmt.git?rev=2c35688#2c356885ee3b311c3dacff7fb57c01026725b0a3"
+source = "git+https://github.com/xacrimon/defmt.git?rev=b3d938c#b3d938c40e8e0623644b36ae9b09198dd4815e10"
 dependencies = [
  "bitflags 1.3.2",
  "defmt-macros",
@@ -362,7 +362,7 @@ dependencies = [
 [[package]]
 name = "defmt-macros"
 version = "1.0.1"
-source = "git+https://github.com/xacrimon/defmt.git?rev=2c35688#2c356885ee3b311c3dacff7fb57c01026725b0a3"
+source = "git+https://github.com/xacrimon/defmt.git?rev=b3d938c#b3d938c40e8e0623644b36ae9b09198dd4815e10"
 dependencies = [
  "defmt-parser",
  "proc-macro-error2",
@@ -374,7 +374,7 @@ dependencies = [
 [[package]]
 name = "defmt-parser"
 version = "1.0.0"
-source = "git+https://github.com/xacrimon/defmt.git?rev=2c35688#2c356885ee3b311c3dacff7fb57c01026725b0a3"
+source = "git+https://github.com/xacrimon/defmt.git?rev=b3d938c#b3d938c40e8e0623644b36ae9b09198dd4815e10"
 dependencies = [
  "thiserror",
 ]

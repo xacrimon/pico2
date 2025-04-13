@@ -3,14 +3,14 @@
 
 mod log;
 
-use defmt::println;
+use defmt::info;
 use embassy_executor::Spawner;
 use embassy_rp::uart;
 use embassy_rp::uart::UartTx;
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
-    println!("Hello, world!");
+    info!("starting...");
 
     let p = embassy_rp::init(Default::default());
 

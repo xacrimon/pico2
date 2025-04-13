@@ -3,9 +3,11 @@ resolver = "3"
 members = ["crates/xtask", "crates/rbq", "crates/nanite"]
 
 [patch.crates-io]
+# patched to get a version newer than available on crates.io
 embassy-executor = { git = "https://github.com/xacrimon/embassy.git", rev = "659c616f9f13aa6f157eaef5279f09805449b5be" }
 embassy-time = { git = "https://github.com/xacrimon/embassy.git", rev = "659c616f9f13aa6f157eaef5279f09805449b5be" }
 embassy-rp = { git = "https://github.com/xacrimon/embassy.git", rev = "659c616f9f13aa6f157eaef5279f09805449b5be" }
 embassy-futures = { git = "https://github.com/xacrimon/embassy.git", rev = "659c616f9f13aa6f157eaef5279f09805449b5be" }
 embassy-sync = { git = "https://github.com/xacrimon/embassy.git", rev = "659c616f9f13aa6f157eaef5279f09805449b5be" }
-defmt = { git = "https://github.com/xacrimon/defmt.git", rev = "2c35688" }
+# patched to disable the compile time level filter
+defmt = { version = "1.0.1", git = "https://github.com/xacrimon/defmt.git", rev = "b3d938c" }

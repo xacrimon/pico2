@@ -27,7 +27,7 @@ embassy-rp = { version = "0.4.0", features = [
     "binary-info",
 ] }
 embassy-futures = "0.1.1"
-defmt = { version = "1.0.1", features = ["encoding-raw"] }
+defmt = { version = "1.0.1", features = ["default-trace", "encoding-raw"] }
 rbq = { path = "../rbq" }
 cortex-m = { version = "0.7.7", features = ["inline-asm"] }
 cortex-m-rt = "0.7.5"
