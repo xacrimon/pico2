@@ -1,3 +1,5 @@
+use defmt::debug_assert;
+
 const USIZE_SIZE: usize = core::mem::size_of::<usize>();
 const USIZE_SIZE_PLUS_ONE: usize = USIZE_SIZE + 1;
 

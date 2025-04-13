@@ -5,6 +5,7 @@ use core::ptr::NonNull;
 use core::{cmp, slice};
 
 use critical_section::CriticalSection;
+use defmt::{debug_assert, todo, unreachable};
 use embassy_sync::waitqueue::WakerRegistration;
 
 use crate::Error;

@@ -1,6 +1,7 @@
 use core::cmp::min;
 
 use critical_section::CriticalSection;
+use defmt::debug_assert;
 
 use crate::Error;
 use crate::buffer::{GrantRead, GrantWrite, RbQueue};
