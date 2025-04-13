@@ -1,4 +1,4 @@
-use defmt::unwrap;
+use defmt::{error, unwrap};
 use embassy_rp::peripherals::UART0;
 use embassy_rp::uart;
 use embassy_rp::uart::UartTx;
@@ -18,7 +18,10 @@ unsafe impl defmt::Logger for Logger {
 
     unsafe fn write(buf: &[u8]) {
         critical_section::with(|cs| {
-            let mut grant = unwrap!(TX_QUEUE.grant_exact(buf.len(), cs));
+            let Ok(mut grant) = TX_QUEUE.grant_exact(buf.len(), cs) else {
+                return;
+            };
+
             grant.buf_mut().copy_from_slice(buf);
             grant.commit(buf.len(), cs);
             TX_QUEUE.wake(cs);
@@ -32,7 +35,8 @@ fn defmt_panic() -> ! {
 }
 
 #[panic_handler]
-fn core_panic(_info: &core::panic::PanicInfo) -> ! {
+fn core_panic(info: &core::panic::PanicInfo) -> ! {
+    error!("core panic: {:?}", info);
     loop {}
 }
 
