@@ -1,3 +1,4 @@
+use defmt::unwrap;
 use embassy_rp::peripherals::UART0;
 use embassy_rp::uart;
 use embassy_rp::uart::UartTx;
@@ -17,7 +18,7 @@ unsafe impl defmt::Logger for Logger {
 
     unsafe fn write(buf: &[u8]) {
         critical_section::with(|cs| {
-            let mut grant = TX_QUEUE.grant_exact(buf.len(), cs).unwrap();
+            let mut grant = unwrap!(TX_QUEUE.grant_exact(buf.len(), cs));
             grant.buf_mut().copy_from_slice(buf);
             grant.commit(buf.len(), cs);
             TX_QUEUE.wake(cs);
@@ -40,7 +41,7 @@ pub async fn to_serial(mut tx: UartTx<'static, UART0, uart::Async>) {
     loop {
         let grant = TX_QUEUE.wait(|q, cs| q.read(cs).ok()).await;
         let size = grant.buf().len();
-        tx.write(grant.buf()).await.unwrap();
+        unwrap!(tx.write(grant.buf()).await);
         critical_section::with(|cs| grant.release(size, cs));
     }
 }

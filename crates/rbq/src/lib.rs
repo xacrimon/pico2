@@ -11,7 +11,7 @@ mod wait;
 pub use buffer::{GrantRead, GrantWrite, RbQueue, SplitGrantRead};
 pub use framed::{FrameGrantRead, FrameGrantWrite};
 
-#[derive(Debug)]
+#[derive(defmt::Format)]
 pub enum Error {
     GrantInProgress,
     InsufficientSize,
