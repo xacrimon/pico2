@@ -4,6 +4,7 @@ use embassy_rp::uart;
 use embassy_rp::uart::{Uart, UartRx, UartTx};
 use futures_util::{FutureExt, select_biased};
 use rbq::RbQueue;
+use scopeguard::defer;
 
 static TX: RbQueue<1024> = RbQueue::new();
 static RX: RbQueue<1024> = RbQueue::new();
@@ -11,6 +12,7 @@ static RX: RbQueue<1024> = RbQueue::new();
 #[embassy_executor::task]
 pub async fn bind_gdb_serial(uart: Uart<'static, UART1, uart::Async>) {
     let (mut tx, mut rx) = uart.split();
+    defer! { info!("bind_gdb_serial stopping due to earlier failure..."); }
 
     select_biased! {
         _ = drive_gdb_serial_tx(&mut tx).fuse() => {
@@ -20,8 +22,6 @@ pub async fn bind_gdb_serial(uart: Uart<'static, UART1, uart::Async>) {
             error!("drive_gdb_serial_rx quit unexpectedly");
         }
     }
-
-    info!("bind_gdb_serial stopping due to earlier failure...");
 }
 
 async fn drive_gdb_serial_tx(uart: &mut UartTx<'static, UART1, uart::Async>) {
