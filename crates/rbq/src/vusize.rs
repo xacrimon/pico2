@@ -1,5 +1,7 @@
 use defmt::debug_assert;
 
+use crate::_unreachable;
+
 const USIZE_SIZE: usize = core::mem::size_of::<usize>();
 const USIZE_SIZE_PLUS_ONE: usize = USIZE_SIZE + 1;
 
@@ -23,12 +25,7 @@ pub fn encoded_len(value: usize) -> usize {
         43..=49 => 3,
         50..=56 => 2,
         57..=64 => 1,
-        _ => {
-            #[allow(unsafe_code)]
-            unsafe {
-                core::hint::unreachable_unchecked()
-            }
-        }
+        _ => _unreachable!(),
     }
 }
 
@@ -40,12 +37,7 @@ pub fn encoded_len(value: usize) -> usize {
         11..=17 => 3,
         18..=24 => 2,
         25..=32 => 1,
-        _ => {
-            #[allow(unsafe_code)]
-            unsafe {
-                core::hint::unreachable_unchecked()
-            }
-        }
+        _ => _unreachable!(),
     }
 }
 
@@ -55,12 +47,7 @@ pub fn encoded_len(value: usize) -> usize {
         0..=1 => 3,
         2..=8 => 2,
         9..=16 => 1,
-        _ => {
-            #[allow(unsafe_code)]
-            unsafe {
-                core::hint::unreachable_unchecked()
-            }
-        }
+        _ => _unreachable!(),
     }
 }
 
