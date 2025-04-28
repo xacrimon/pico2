@@ -23,7 +23,7 @@ embassy-rp = { version = "0.4.0", features = [
     "run-from-ram",
     "boot2-ram-memcpy",
     "imagedef-secure-exe",
-    "rp235xa",
+    "rp235xb",
     "binary-info",
 ] }
 futures-util = { version = "0.3.31", default-features = false, features = ["async-await", "async-await-macro"] }
@@ -32,7 +32,7 @@ rbq = { path = "../rbq" }
 cortex-m = { version = "0.7.7", features = ["inline-asm"] }
 cortex-m-rt = "0.7.5"
 critical-section = "1.2.0"
-scopeguard = { version = "1.2.0", default-features = false }
+static_cell = "2.1.0"
 
 [package.metadata.cargo-machete]
 ignored = ["cortex-m", "cortex-m-rt", "embassy-time"]
