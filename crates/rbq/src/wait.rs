@@ -16,7 +16,7 @@ where
 {
     type Output = T;
 
-    #[inline]
+    #[inline(never)]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         critical_section::with(|cs| {
             let fut = pin!(self);
