@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/xtask", "crates/rbq", "crates/nanite"]
+members = ["crates/xtask", "crates/sort", "crates/rbq", "crates/nanite"]
 
 [patch.crates-io]
 # patched to get a version newer than available on crates.io
