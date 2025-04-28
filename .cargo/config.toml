@@ -40,7 +40,7 @@ xtask = "run --package xtask --"
 opt-level = 1
 
 [profile.release]
-opt-level = "z"
+opt-level = 3
 codegen-units = 1
 
 [profile.ci]
