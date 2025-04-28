@@ -5,28 +5,6 @@ use critical_section::CriticalSection;
 
 use crate::buffer::Ring;
 
-struct DynPollFn<'a, 'f, T> {
-    ring: &'a Ring<'a>,
-    op: &'f dyn Fn(&'a Ring, CriticalSection) -> Option<T>,
-}
-
-impl<'a, 'f, T> Future for DynPollFn<'a, 'f, T> {
-    type Output = T;
-
-    #[inline(never)]
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        critical_section::with(|cs| {
-            let fut = pin!(self);
-            if let Some(result) = (fut.op)(fut.ring, cs) {
-                return Poll::Ready(result);
-            }
-
-            fut.ring._dst(cs).waker.register(cx.waker());
-            Poll::Pending
-        })
-    }
-}
-
 pub struct PollFn<'a, F> {
     ring: &'a Ring<'a>,
     op: F,
@@ -40,12 +18,15 @@ where
 
     #[inline]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let fut = pin!(DynPollFn {
-            ring: self.ring,
-            op: &self.op,
-        });
+        critical_section::with(|cs| {
+            let fut = pin!(self);
+            if let Some(result) = (fut.op)(fut.ring, cs) {
+                return Poll::Ready(result);
+            }
 
-        fut.poll(cx)
+            fut.ring._dst(cs).waker.register(cx.waker());
+            Poll::Pending
+        })
     }
 }
 
