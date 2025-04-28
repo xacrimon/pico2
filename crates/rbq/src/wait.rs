@@ -1,46 +1,60 @@
-use core::future::Future;
 use core::pin::{Pin, pin};
 use core::task::{Context, Poll};
 
 use critical_section::CriticalSection;
 
-use crate::buffer::RbQueue;
+use crate::buffer::Ring;
 
-impl<const N: usize> RbQueue<N> {
-    pub fn wake(&self, _cs: CriticalSection) {
-        let inner = unsafe { self.inner_ref() };
-        inner.waker.wake();
-    }
-
-    pub fn wait<'a, F, T>(&'a self, op: F) -> RbQueueFuture<'a, F, N>
-    where
-        F: Fn(&'a RbQueue<N>, CriticalSection) -> Option<T>,
-    {
-        RbQueueFuture { queue: self, op }
-    }
+struct DynPollFn<'a, 'f, T> {
+    ring: &'a Ring<'a>,
+    op: &'f dyn Fn(&'a Ring, CriticalSection) -> Option<T>,
 }
 
-pub struct RbQueueFuture<'a, F, const N: usize> {
-    queue: &'a RbQueue<N>,
-    op: F,
-}
-
-impl<'a, T, F, const N: usize> Future for RbQueueFuture<'a, F, N>
-where
-    F: Fn(&'a RbQueue<N>, CriticalSection) -> Option<T>,
-{
+impl<'a, 'f, T> Future for DynPollFn<'a, 'f, T> {
     type Output = T;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+    #[inline(never)]
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         critical_section::with(|cs| {
             let fut = pin!(self);
-            if let Some(result) = (fut.op)(fut.queue, cs) {
+            if let Some(result) = (fut.op)(fut.ring, cs) {
                 return Poll::Ready(result);
             }
 
-            let inner = unsafe { fut.queue.inner_ref() };
-            inner.waker.register(cx.waker());
+            fut.ring._dst(cs).waker.register(cx.waker());
             Poll::Pending
         })
+    }
+}
+
+pub struct PollFn<'a, F> {
+    ring: &'a Ring<'a>,
+    op: F,
+}
+
+impl<'a, T, F> Future for PollFn<'a, F>
+where
+    F: Fn(&'a Ring, CriticalSection) -> Option<T>,
+{
+    type Output = T;
+
+    #[inline]
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let fut = pin!(DynPollFn {
+            ring: self.ring,
+            op: &self.op,
+        });
+
+        fut.poll(cx)
+    }
+}
+
+impl<'a> Ring<'a> {
+    #[inline]
+    pub fn poll<'b, F, T>(&'b self, op: F) -> PollFn<'b, F>
+    where
+        F: Fn(&'b Ring, CriticalSection) -> Option<T>,
+    {
+        PollFn { ring: self, op }
     }
 }

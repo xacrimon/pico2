@@ -1,19 +1,17 @@
-use core::num::{NonZeroU16, NonZeroUsize};
+use core::mem;
+use core::num::NonZeroUsize;
 use core::ops::Range;
-use core::slice::Split;
-use core::{cmp, mem};
 
 use crate::{_cold, _unreachable, _unsafe_assert, Error};
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub(super) struct GrantRange {
     start: usize,
     len: NonZeroUsize,
 }
 
 impl GrantRange {
-    #[cfg_attr(debug_assertions, inline(never))]
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[inline]
     fn from_range(range: Range<usize>) -> Self {
         _unsafe_assert!(range.start < range.end);
 
@@ -28,21 +26,25 @@ impl GrantRange {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub(super) fn to_range(self) -> Range<usize> {
         self.start..(self.start + self.len.get())
     }
+
+    #[inline]
+    pub(super) fn to_len(self) -> usize {
+        self.len.get()
+    }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub(super) struct SplitGrantRange {
     head: GrantRange,
     tail: Option<GrantRange>,
 }
 
 impl SplitGrantRange {
-    #[cfg_attr(debug_assertions, inline(never))]
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[inline]
     fn from_ranges(head: Range<usize>, tail: Option<Range<usize>>) -> Self {
         let tail = match tail {
             Some(tail) => Some(GrantRange::from_range(tail)),
@@ -55,7 +57,7 @@ impl SplitGrantRange {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub(super) fn to_ranges(self) -> (Range<usize>, Option<Range<usize>>) {
         let head = self.head.to_range();
         let tail = match self.tail {
@@ -67,7 +69,7 @@ impl SplitGrantRange {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(super) struct Book {
     // where the next byte will be written
     write: usize,
@@ -88,8 +90,7 @@ pub(super) struct Book {
 }
 
 impl Book {
-    #[cfg_attr(debug_assertions, inline(never))]
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[inline]
     fn sm_acq_write(&mut self) -> Result<(), Error> {
         if !self.write_in_progress {
             self.write_in_progress = true;
@@ -99,15 +100,13 @@ impl Book {
         }
     }
 
-    #[cfg_attr(debug_assertions, inline(never))]
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[inline]
     fn sm_rel_write(&mut self) {
         _unsafe_assert!(self.write_in_progress);
         self.write_in_progress = false;
     }
 
-    #[cfg_attr(debug_assertions, inline(never))]
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[inline]
     fn sm_acq_read(&mut self) -> Result<(), Error> {
         if !self.read_in_progress {
             self.read_in_progress = true;
@@ -117,14 +116,12 @@ impl Book {
         }
     }
 
-    #[cfg_attr(debug_assertions, inline(never))]
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[inline]
     fn sm_rel_read(&mut self) {
         _unsafe_assert!(self.read_in_progress);
         self.read_in_progress = false;
     }
 
-    #[inline(always)]
     pub(super) const fn new() -> Self {
         Self {
             write: 0,
@@ -136,7 +133,17 @@ impl Book {
         }
     }
 
-    #[inline(never)]
+    #[inline]
+    pub(super) fn release_write(&mut self) {
+        self.sm_rel_write();
+    }
+
+    #[inline]
+    pub(super) fn release_read(&mut self) {
+        self.sm_rel_read();
+    }
+
+    #[inline]
     pub(super) fn acquire_write_exact(
         &mut self,
         capacity: usize,
@@ -179,7 +186,7 @@ impl Book {
         Ok(GrantRange::from_range(grant_range))
     }
 
-    #[inline(never)]
+    #[inline]
     pub(super) fn commit_write_exact(&mut self, capacity: usize, size: usize, used: usize) {
         _unsafe_assert!(used <= size);
 
@@ -220,17 +227,17 @@ impl Book {
         self.sm_rel_write();
     }
 
-    #[inline(never)]
-    pub(super) fn acquire_write_remaining(&mut self) -> Option<()> {
+    #[inline]
+    pub(super) fn acquire_write_remaining(&mut self, capacity: usize) -> Result<GrantRange, Error> {
         unimplemented!()
     }
 
-    #[inline(never)]
-    pub(super) fn commit_write_remaining(&mut self, used: usize) {
+    #[inline]
+    pub(super) fn commit_write_remaining(&mut self, capacity: usize, size: usize, used: usize) {
         unimplemented!()
     }
 
-    #[inline(never)]
+    #[inline]
     pub(super) fn acquire_read(&mut self, capacity: usize) -> Result<GrantRange, Error> {
         self.sm_acq_read()?;
 
@@ -254,19 +261,19 @@ impl Book {
         Ok(GrantRange::from_range(grant_range))
     }
 
-    #[inline(never)]
+    #[inline]
     pub(super) fn commit_read(&mut self, size: usize, used: usize) {
         _unsafe_assert!(used <= size);
         self.read += used;
         self.sm_rel_read();
     }
 
-    #[inline(never)]
-    pub(super) fn acquire_read_split(&mut self) -> Result<SplitGrantRange, Error> {
+    #[inline]
+    pub(super) fn acquire_read_split(&mut self, capacity: usize) -> Result<SplitGrantRange, Error> {
         unimplemented!()
     }
 
-    #[inline(never)]
+    #[inline]
     pub(super) fn commit_read_split(&mut self, size1: usize, size2: usize, used: usize) {
         let combined_len = size1 + size2;
         _unsafe_assert!(used <= combined_len);

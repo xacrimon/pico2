@@ -1,16 +1,20 @@
 #![no_std]
 #![feature(non_null_from_ref)]
+#![feature(maybe_uninit_as_bytes)]
+#![feature(maybe_uninit_uninit_array, maybe_uninit_slice)]
 //#![deny(missing_docs)]
 //#![deny(warnings)]
 
-pub mod book;
+mod book;
 mod buffer;
-mod framed;
+mod grant;
 mod vusize;
 mod wait;
 
-pub use buffer::{GrantRead, GrantWrite, RbQueue, SplitGrantRead};
-pub use framed::{FrameGrantRead, FrameGrantWrite};
+pub use buffer::{Buffer, Ring};
+pub use grant::{GrantRead, GrantWrite, SplitGrantRead};
+pub use wait::PollFn;
+//pub use framed::{FrameGrantRead, FrameGrantWrite};
 
 #[derive(defmt::Format)]
 pub enum Error {
