@@ -1,13 +1,7 @@
 #![no_std]
 
 use core::cmp::Ordering;
-use core::mem;
-use core::ptr;
-
-#[inline(never)]
-pub fn exp_sort_i32s(v: &mut [i32]) {
-    sort(v);
-}
+use core::{mem, ptr};
 
 /// Sort `v` **without** preserving initial order of equal elements.
 ///

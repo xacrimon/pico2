@@ -8,7 +8,7 @@
 mod book;
 mod buffer;
 mod grant;
-mod vusize;
+pub mod vusize;
 mod wait;
 
 pub use buffer::{Buffer, Ring};
