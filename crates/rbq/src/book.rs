@@ -1,8 +1,7 @@
-use core::mem;
 use core::num::NonZeroUsize;
 use core::ops::Range;
 
-use crate::{_cold, _unreachable, _unsafe_assert, Error};
+use crate::{_unreachable, _unsafe_assert, Error};
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct GrantRange {
@@ -34,38 +33,6 @@ impl GrantRange {
     #[inline]
     pub(super) fn to_len(self) -> usize {
         self.len.get()
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub(super) struct SplitGrantRange {
-    head: GrantRange,
-    tail: Option<GrantRange>,
-}
-
-impl SplitGrantRange {
-    #[inline]
-    fn from_ranges(head: Range<usize>, tail: Option<Range<usize>>) -> Self {
-        let tail = match tail {
-            Some(tail) => Some(GrantRange::from_range(tail)),
-            None => None,
-        };
-
-        Self {
-            head: GrantRange::from_range(head),
-            tail,
-        }
-    }
-
-    #[inline]
-    pub(super) fn to_ranges(self) -> (Range<usize>, Option<Range<usize>>) {
-        let head = self.head.to_range();
-        let tail = match self.tail {
-            Some(tail) => Some(tail.to_range()),
-            None => None,
-        };
-
-        (head, tail)
     }
 }
 
@@ -233,12 +200,10 @@ impl Book {
     }
 
     #[inline]
-    pub(super) fn acquire_write_remaining(&mut self, capacity: usize) -> Result<GrantRange, Error> {
-        unimplemented!()
-    }
-
-    #[inline]
-    pub(super) fn commit_write_remaining(&mut self, capacity: usize, size: usize, used: usize) {
+    pub(super) fn acquire_write_remaining(
+        &mut self,
+        _capacity: usize,
+    ) -> Result<GrantRange, Error> {
         unimplemented!()
     }
 
@@ -270,25 +235,6 @@ impl Book {
     pub(super) fn commit_read(&mut self, size: usize, used: usize) {
         _unsafe_assert!(used <= size);
         self.read += used;
-        self.sm_rel_read();
-    }
-
-    #[inline]
-    pub(super) fn acquire_read_split(&mut self, capacity: usize) -> Result<SplitGrantRange, Error> {
-        unimplemented!()
-    }
-
-    #[inline]
-    pub(super) fn commit_read_split(&mut self, size1: usize, size2: usize, used: usize) {
-        let combined_len = size1 + size2;
-        _unsafe_assert!(used <= combined_len);
-
-        if used <= size1 {
-            self.read += used;
-        } else {
-            self.read = used - size1
-        }
-
         self.sm_rel_read();
     }
 }

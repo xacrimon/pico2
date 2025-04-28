@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(maybe_uninit_uninit_array)]
+#![feature(maybe_uninit_uninit_array, maybe_uninit_slice)]
 
 mod book;
 mod buffer;
@@ -7,7 +7,7 @@ mod grant;
 mod wait;
 
 pub use buffer::{Buffer, Ring};
-pub use grant::{GrantRead, GrantWrite, SplitGrantRead};
+pub use grant::{GrantRead, GrantWrite};
 pub use wait::PollFn;
 
 #[derive(defmt::Format)]
@@ -46,18 +46,4 @@ macro_rules! internal_unsafe_assert {
     }};
 }
 
-macro_rules! internal_cold {
-    ($t:ty, $e:expr) => {{
-        #[cold]
-        fn _cold_fn() -> $t {
-            $e
-        }
-
-        return _cold_fn();
-    }};
-}
-
-use {
-    internal_cold as _cold, internal_unreachable as _unreachable,
-    internal_unsafe_assert as _unsafe_assert,
-};
+use {internal_unreachable as _unreachable, internal_unsafe_assert as _unsafe_assert};

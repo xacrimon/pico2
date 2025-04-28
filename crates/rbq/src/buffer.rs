@@ -1,13 +1,14 @@
 use core::cell::UnsafeCell;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
+use core::ops::Range;
 
 use critical_section::CriticalSection;
 use embassy_sync::waitqueue::WakerRegistration;
 
 use crate::Error;
 use crate::book::Book;
-use crate::grant::{GrantRead, GrantWrite, SplitGrantRead};
+use crate::grant::{GrantRead, GrantWrite};
 
 pub(crate) struct Dst<T: ?Sized> {
     pub(crate) book: Book,
@@ -80,21 +81,28 @@ impl<'a> Ring<'a> {
         let grant = GrantRead { ring: self, range };
         Ok(grant)
     }
-
-    #[inline(never)]
-    pub fn split_read(&self, cs: CriticalSection) -> Result<SplitGrantRead, Error> {
-        let dst = self._dst(cs);
-        let capacity = dst.buf.len();
-        let ranges = dst.book.acquire_read_split(capacity)?;
-        let grant = SplitGrantRead { ring: self, ranges };
-        Ok(grant)
-    }
 }
 
 impl<'a> Ring<'a> {
     #[inline]
     pub(crate) fn _dst(&self, _cs: CriticalSection) -> &mut Dst<[MaybeUninit<u8>]> {
         unsafe { &mut *(self.dst) }
+    }
+
+    #[inline]
+    pub(crate) unsafe fn view(&self, range: Range<usize>) -> &[u8] {
+        unsafe {
+            let dst = &*(self.dst);
+            dst.buf.get_unchecked(range).assume_init_ref()
+        }
+    }
+
+    #[inline]
+    pub(crate) unsafe fn view_mut(&self, range: Range<usize>) -> &mut [u8] {
+        unsafe {
+            let dst = &mut *(self.dst);
+            dst.buf.get_unchecked_mut(range).assume_init_mut()
+        }
     }
 }
 
