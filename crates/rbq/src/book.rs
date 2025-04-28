@@ -69,6 +69,11 @@ impl SplitGrantRange {
     }
 }
 
+#[cold]
+fn err_in_progress() -> Result<(), Error> {
+    Err(Error::GrantInProgress)
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct Book {
     // where the next byte will be written
@@ -96,7 +101,7 @@ impl Book {
             self.write_in_progress = true;
             Ok(())
         } else {
-            _cold!(Result<(), Error>, Err(Error::GrantInProgress));
+            err_in_progress()
         }
     }
 
@@ -112,7 +117,7 @@ impl Book {
             self.read_in_progress = true;
             Ok(())
         } else {
-            _cold!(Result<(), Error>, Err(Error::GrantInProgress));
+            err_in_progress()
         }
     }
 
